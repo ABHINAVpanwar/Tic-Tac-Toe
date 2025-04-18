@@ -303,40 +303,53 @@
       </a>
     </div>
     <script>
-      /* Your JavaScript remains exactly the same */
       let symbol = "";
       let myName = "";
+      let isLeaving = false;
 
       async function joinGame() {
         const name = document.getElementById("playerName").value;
         if (!name) return;
 
-        const res = await fetch("/join", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
-        });
+        try {
+          const res = await fetch("/join", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+          });
 
-        const data = await res.json();
-        if (data.success) {
-          symbol = data.symbol;
-          myName = name;
-          document.getElementById("status").textContent = `Joined as ${symbol}`;
-          document.getElementById("playerInput").style.display = "none";
-          document.getElementById("game").style.display = "block";
-          document.getElementById("resetBtn").style.display = "inline-block";
-          startPolling();
-        } else {
-          document.getElementById("status").textContent = data.message;
+          const data = await res.json();
+          if (data.success) {
+            symbol = data.symbol;
+            myName = name;
+            document.getElementById(
+              "status"
+            ).textContent = `Joined as ${symbol}`;
+            document.getElementById("playerInput").style.display = "none";
+            document.getElementById("game").style.display = "block";
+            document.getElementById("resetBtn").style.display = "inline-block";
+            startPolling();
+            startHeartbeat();
+          } else {
+            document.getElementById("status").textContent = data.message;
+          }
+        } catch (error) {
+          console.error("Join game error:", error);
+          document.getElementById("status").textContent = "Failed to join game";
         }
       }
 
       async function startPolling() {
-        while (true) {
-          const res = await fetch("/get_state");
-          const state = await res.json();
-          updateBoard(state);
-          await new Promise((r) => setTimeout(r, 1000));
+        while (symbol) {
+          try {
+            const res = await fetch("/get_state");
+            const state = await res.json();
+            updateBoard(state);
+            await new Promise((r) => setTimeout(r, 1000));
+          } catch (error) {
+            console.error("Polling error:", error);
+            await new Promise((r) => setTimeout(r, 2000));
+          }
         }
       }
 
@@ -364,38 +377,81 @@
           : "";
 
         const onlineStatus = document.getElementById("onlineStatus");
-
         let xStatus = state.players["X"]
           ? `🟢 Player X (${state.players["X"]}) is online`
           : `🔴 Player X is waiting...`;
-
         let oStatus = state.players["O"]
           ? `🟢 Player O (${state.players["O"]}) is online`
           : `🔴 Player O is waiting...`;
-
         onlineStatus.innerHTML = `<p>${xStatus}</p><p>${oStatus}</p>`;
       }
 
       async function makeMove(index) {
-        await fetch("/make_move", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ index, symbol }),
-        });
+        try {
+          await fetch("/make_move", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ index, symbol }),
+          });
+        } catch (error) {
+          console.error("Move error:", error);
+        }
       }
 
       async function resetGame() {
-        await fetch("/reset", { method: "POST" });
-        location.reload();
+        try {
+          await fetch("/reset", { method: "POST" });
+          location.reload();
+        } catch (error) {
+          console.error("Reset error:", error);
+        }
       }
 
-      window.addEventListener("beforeunload", async () => {
-        if (symbol) {
+      function startHeartbeat() {
+        if (!symbol) return;
+
+        const intervalId = setInterval(async () => {
+          if (!symbol) {
+            clearInterval(intervalId);
+            return;
+          }
+          try {
+            await fetch("/heartbeat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ symbol }),
+            });
+          } catch (e) {
+            console.error("Heartbeat failed:", e);
+          }
+        }, 15000); // Every 15 seconds
+      }
+
+      async function handleLeave() {
+        if (isLeaving || !symbol) return;
+        isLeaving = true;
+
+        try {
           await fetch("/leave", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ symbol }),
+            keepalive: true,
           });
+        } catch (e) {
+          console.error("Leave request failed:", e);
+        }
+      }
+
+      // Multiple event listeners for better coverage
+      window.addEventListener("beforeunload", handleLeave);
+      window.addEventListener("pagehide", handleLeave);
+      window.addEventListener("unload", handleLeave);
+
+      // For mobile browsers
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+          handleLeave();
         }
       });
     </script>
