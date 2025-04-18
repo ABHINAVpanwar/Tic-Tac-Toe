@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Play!</title>
+    <link
+      rel="icon"
+      href="{{ url_for('static', filename='favicon.png') }}"
+      type="image/x-icon"
+    />
+    <style>
+      :root {
+        --primary: #4caf50;
+        --primary-hover: #45a049;
+        --background: linear-gradient(135deg, #121212 0%, #1e1e1e 100%);
+        --card-bg: #222;
+        --text-light: #f1f1f1;
+        --text-lighter: #ffffff;
+        --text-muted: #ccc;
+        --border: #555;
+        --cell-bg: #333;
+        --cell-hover: #444;
+        --disabled: #555;
+        --winner: #e91e63;
+        --error: #ff4f4f;
+        --online: #4caf50;
+        --offline: #ff4f4f;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+        cursor: default;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        min-height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
+        background: var(--background);
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-light);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      h1 {
+        color: var(--text-lighter);
+        margin: 10px 0;
+        font-size: clamp(1.5rem, 4vw, 2rem);
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        padding: 0 10px;
+        text-align: center;
+      }
+
+      #playerInput,
+      #game {
+        background: var(--card-bg);
+        padding: 20px;
+        margin: 10px auto;
+        width: min(95%, 320px);
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      input[type="text"] {
+        padding: 10px 12px;
+        font-size: 0.95em;
+        width: 100%;
+        margin-bottom: 12px;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        background-color: var(--cell-bg);
+        color: var(--text-light);
+        transition: border-color 0.3s;
+      }
+
+      input[type="text"]:focus {
+        outline: none;
+        border-color: var(--primary);
+      }
+
+      button {
+        padding: 10px 20px;
+        font-size: 0.95em;
+        font-weight: 600;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        width: 100%;
+        max-width: 200px;
+      }
+
+      button:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      #status {
+        margin-top: 12px;
+        font-weight: bold;
+        color: var(--error);
+        min-height: 18px;
+        text-align: center;
+        font-size: 0.9em;
+      }
+
+      #onlineStatus {
+        margin: 10px auto;
+        width: min(95%, 320px);
+        font-size: 0.85em;
+        color: var(--text-muted);
+        background: var(--card-bg);
+        padding: 12px;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      }
+
+      #onlineStatus p {
+        margin: 6px 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      #turnInfo {
+        font-size: 1.1em;
+        margin-bottom: 12px;
+        color: var(--text-light);
+        font-weight: 500;
+        text-align: center;
+      }
+
+      #winnerMsg {
+        font-weight: bold;
+        margin: 12px 0;
+        font-size: 1.1em;
+        color: var(--winner);
+        text-align: center;
+      }
+
+      #board {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        width: 100%;
+        max-width: 280px;
+        margin: 0 auto 15px;
+      }
+
+      #board button {
+        aspect-ratio: 1/1;
+        width: 100%;
+        font-size: 2em;
+        border-radius: 10px;
+        background-color: var(--cell-bg);
+        color: var(--text-light);
+        border: 2px solid var(--border);
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+
+      #board button:hover:enabled {
+        background-color: var(--cell-hover);
+        transform: scale(1.03);
+        box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3);
+      }
+
+      #board button:disabled {
+        background-color: var(--disabled);
+        color: #aaa;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      #game {
+        display: none;
+      }
+
+      #resetBtn {
+        display: none;
+        margin-top: 12px;
+        width: auto;
+      }
+
+      @media (max-height: 700px) {
+        h1 {
+          margin: 5px 0;
+          font-size: 1.5rem;
+        }
+
+        #playerInput,
+        #game {
+          padding: 15px;
+          margin: 5px auto;
+        }
+
+        #board button {
+          font-size: 1.8em;
+        }
+      }
+
+      @media (max-height: 600px) {
+        #board {
+          max-width: 240px;
+          gap: 6px;
+        }
+
+        #board button {
+          font-size: 1.6em;
+        }
+
+        #turnInfo,
+        #winnerMsg {
+          font-size: 1em;
+          margin-bottom: 8px;
+        }
+      }
+
+      /* Add this to your existing styles */
+      .logo-corner {
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 100;
+      }
+
+      .logo-corner img {
+        filter: invert(1);
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        transition: transform 0.3s ease;
+      }
+
+      .logo-corner img:hover {
+        transform: scale(1.1);
+      }
+
+      @media (max-width: 600px) {
+        .logo-corner {
+          top: 20px;
+          left: 20px;
+        }
+
+        .logo-corner img {
+          width: 40px;
+          height: 40px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Rest of your HTML remains exactly the same -->
+    <h1>Multiplayer Tic Tac Toe</h1>
+
+    <div id="playerInput">
+      <input type="text" id="playerName" placeholder="Enter your name" />
+      <button onclick="joinGame()">Join Game</button>
+      <p id="status"></p>
+    </div>
+
+    <div id="onlineStatus"></div>
+
+    <div id="game">
+      <h2 id="turnInfo"></h2>
+      <div id="board"></div>
+      <p id="winnerMsg"></p>
+      <button id="resetBtn" onclick="resetGame()">Reset Game</button>
+    </div>
+
+    <div class="logo-corner">
+      <a href="https://abhinavpanwar.netlify.app">
+        <img
+          src="{{ url_for('static', filename='logo.png') }}"
+          alt="Your Website Logo"
+        />
+      </a>
+    </div>
+    <script>
+      /* Your JavaScript remains exactly the same */
+      let symbol = "";
+      let myName = "";
+
+      async function joinGame() {
+        const name = document.getElementById("playerName").value;
+        if (!name) return;
+
+        const res = await fetch("/join", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          symbol = data.symbol;
+          myName = name;
+          document.getElementById("status").textContent = `Joined as ${symbol}`;
+          document.getElementById("playerInput").style.display = "none";
+          document.getElementById("game").style.display = "block";
+          document.getElementById("resetBtn").style.display = "inline-block";
+          startPolling();
+        } else {
+          document.getElementById("status").textContent = data.message;
+        }
+      }
+
+      async function startPolling() {
+        while (true) {
+          const res = await fetch("/get_state");
+          const state = await res.json();
+          updateBoard(state);
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+
+      function updateBoard(state) {
+        const boardDiv = document.getElementById("board");
+        boardDiv.innerHTML = "";
+
+        state.board.forEach((cell, i) => {
+          const btn = document.createElement("button");
+          btn.textContent = cell;
+          btn.onclick = () => makeMove(i);
+          btn.disabled =
+            !!cell || state.winner || state.current_turn !== symbol;
+          boardDiv.appendChild(btn);
+        });
+
+        document.getElementById("turnInfo").textContent = state.winner
+          ? `Winner: ${state.players[state.winner]} (${state.winner})`
+          : `Current Turn: ${state.players[state.current_turn]} (${
+              state.current_turn
+            })`;
+
+        document.getElementById("winnerMsg").textContent = state.winner
+          ? "Game Over!"
+          : "";
+
+        const onlineStatus = document.getElementById("onlineStatus");
+
+        let xStatus = state.players["X"]
+          ? `🟢 Player X (${state.players["X"]}) is online`
+          : `🔴 Player X is waiting...`;
+
+        let oStatus = state.players["O"]
+          ? `🟢 Player O (${state.players["O"]}) is online`
+          : `🔴 Player O is waiting...`;
+
+        onlineStatus.innerHTML = `<p>${xStatus}</p><p>${oStatus}</p>`;
+      }
+
+      async function makeMove(index) {
+        await fetch("/make_move", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ index, symbol }),
+        });
+      }
+
+      async function resetGame() {
+        await fetch("/reset", { method: "POST" });
+        location.reload();
+      }
+
+      window.addEventListener("beforeunload", async () => {
+        if (symbol) {
+          await fetch("/leave", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ symbol }),
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
