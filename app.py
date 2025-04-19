@@ -93,6 +93,8 @@ def make_move():
     winner = check_winner()
     if winner:
         game_state["winner"] = winner
+    elif check_draw():  # Check for draw after checking for winner
+        game_state["winner"] = "draw"
     else:
         game_state["current_turn"] = "X" if symbol == "O" else "O"
     
@@ -120,6 +122,10 @@ def check_winner():
         if game_state["board"][a] == game_state["board"][b] == game_state["board"][c] != "":
             return game_state["board"][a]
     return None
+
+# Check for draw
+def check_draw():
+    return "" not in game_state["board"] and game_state["winner"] is None
 
 # Inactivity check
 def check_inactive_players():
