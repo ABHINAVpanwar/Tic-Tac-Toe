@@ -23,6 +23,7 @@
         --cell-hover: #444;
         --disabled: #555;
         --winner: #e91e63;
+        --draw: #ff9800;
         --error: #ff4f4f;
         --online: #4caf50;
         --offline: #ff4f4f;
@@ -157,7 +158,6 @@
         font-weight: bold;
         margin: 12px 0;
         font-size: 1.1em;
-        color: var(--winner);
         text-align: center;
       }
 
@@ -242,7 +242,6 @@
         }
       }
 
-      /* Add this to your existing styles */
       .logo-corner {
         position: fixed;
         top: 15px;
@@ -276,7 +275,6 @@
     </style>
   </head>
   <body>
-    <!-- Rest of your HTML remains exactly the same -->
     <h1>Tic Tac Toe</h1>
 
     <div id="playerInput">
@@ -366,15 +364,21 @@
           boardDiv.appendChild(btn);
         });
 
-        document.getElementById("turnInfo").textContent = state.winner
-          ? `Winner: ${state.players[state.winner]} (${state.winner})`
-          : `Current Turn: ${state.players[state.current_turn]} (${
-              state.current_turn
-            })`;
+        const turnInfo = document.getElementById("turnInfo");
+        const winnerMsg = document.getElementById("winnerMsg");
 
-        document.getElementById("winnerMsg").textContent = state.winner
-          ? "Game Over!"
-          : "";
+        if (state.winner === "draw") {
+          turnInfo.textContent = "Game ended in a draw!";
+          winnerMsg.textContent = "It's a tie!";
+          winnerMsg.style.color = "var(--draw)";
+        } else if (state.winner) {
+          turnInfo.textContent = `Winner: ${state.players[state.winner]} (${state.winner})`;
+          winnerMsg.textContent = "Game Over!";
+          winnerMsg.style.color = "var(--winner)";
+        } else {
+          turnInfo.textContent = `Current Turn: ${state.players[state.current_turn]} (${state.current_turn})`;
+          winnerMsg.textContent = "";
+        }
 
         const onlineStatus = document.getElementById("onlineStatus");
         let xStatus = state.players["X"]
